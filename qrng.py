@@ -36,7 +36,9 @@ def generateBits(n = 10000):
     transpiled_qc = transpile(qc, backend)
     sampler = SamplerV2(mode = backend)
 
+    session_id = db.startSession("hadamard")
     result = sampler.run([transpiled_qc], shots = n).result()
     bits = [int(b) for b in result[0].data.c.get_bitstrings()]
-    db.storeBits(bits)
+    db.storeBits(bits, session_id)
+    db.endSession(session_id)
     return len(bits)
