@@ -37,8 +37,10 @@ def generateBits(n = 10000):
     sampler = SamplerV2(mode = backend)
 
     session_id = db.startSession("hadamard")
-    result = sampler.run([transpiled_qc], shots = n).result()
+    job = sampler.run([transpiled_qc], shots = n)
+    result = job.result()
     bits = [int(b) for b in result[0].data.c.get_bitstrings()]
+    exec_time = job.usage()  # official IBM QPU execution time, in seconds
     db.storeBits(bits, session_id)
-    db.endSession(session_id)
+    db.endSession(session_id, exec_time)
     return len(bits)

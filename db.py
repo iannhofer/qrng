@@ -14,8 +14,7 @@ def _connect():
         CREATE TABLE IF NOT EXISTS sessions (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             source     TEXT NOT NULL,
-            start_time TEXT,
-            end_time   TEXT
+            exec_time  REAL
         );
 
         CREATE TABLE IF NOT EXISTS bits (
@@ -25,34 +24,30 @@ def _connect():
         );
         """
     )
-    return conn
 
-# return time now
-def now():
-    return datetime.now(timezone.utc).isoformat()
-
-
-# stores start time of session, returns session id
-def startSession(source):
+#stores session, how bits were generated and duration
+def storeSession(source, exec_time):
     conn = _connect()
     with conn:
         cur = conn.execute(
-            "INSERT INTO sessions (source, start_time) VALUES (?, ?)",
-            (source, now()),
+            "insert into sessions (source, exec_time) values (?,?)",
+            (source, exec_time),
         )
-        session_id = cur.lastrowid
+        session_id=cur.lastrowid
     conn.close()
     return session_id
 
-# stores end time of session
-def endSession(session_id):
+
+# returns execution time of a session (excludes ibm queue)
+def getDuration(session_id):
     conn = _connect()
     with conn:
-        conn.execute(
-            "UPDATE sessions SET end_time = ? WHERE id = ?",
-            (now(), session_id),
-        )
+        row = conn.execute(
+            "SELECT exec_time FROM sessions WHERE id = ?",
+            (session_id,),
+        ).fetchone()
     conn.close()
+    return row[0] if row else None
 
 
 # stores bits in db under the given session
@@ -66,7 +61,7 @@ def storeBits(bits, session_id):
     conn.close()
 
 
-# returns bits ordered by id, optionally filter by session
+# returns bits ordered by id, can be filtered by session
 def getBits(session_id=None):
     conn = _connect()
     with conn:
@@ -79,3 +74,14 @@ def getBits(session_id=None):
             ).fetchall()
     conn.close()
     return [row[0] for row in rows]
+
+# returns number of bits generated in a session
+def countBits(session_id):
+    conn = _connect()
+    with conn:
+        row = conn.execute(
+            "select count(*) from bits where session_id = ?",
+            (session_id,),
+        ).fetchone()
+    conn.close()
+    return row[0]
