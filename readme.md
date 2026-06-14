@@ -4,7 +4,7 @@ Generates random bits and stores then in a database alongside other data later u
 
 ## How it works
 
-Creates a Hadamard Gate and collapses it by measuring. The resulting bits are stored in a MySQL database and then used for analysis (random bit generation speed, min-entropy).
+Creates a Hadamard Gate and collapses it by measuring. The resulting bits are stored in a SQLite database and then used for analysis (random bit generation speed, min-entropy).
 
 
 ## Requirements
@@ -20,7 +20,7 @@ Creates a Hadamard Gate and collapses it by measuring. The resulting bits are st
 python -m venv .venv
 source .venv/bin/activate
 
-pip install qiskit qiskit-ibm-runtime python-dotenv numpy
+pip install -r requirements.txt
 ```
 
 Copy the example environment file and add your IBM Quantum API token:
