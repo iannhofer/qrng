@@ -1,8 +1,7 @@
 import os
 import sqlite3
-from datetime import datetime, timezone
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "qrng.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "rng.db")
 
 
 # creates session and bit table. session is one run/batch of retrieving bits.
@@ -24,6 +23,8 @@ def _connect():
         );
         """
     )
+    return conn
+
 
 #stores session, how bits were generated and duration
 def storeSession(source, exec_time):

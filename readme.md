@@ -70,16 +70,19 @@ print(analysis.calcSpeed(session_id=1))        # bits per second on the QPU
 | ------------- | ---------------------------------------------------- |
 | `main.py`     | Entry point — generates a batch of bits.             |
 | `qrng.py`     | Quantum circuit and IBM Runtime job submission.      |
+| `prng.py`     | Pseudo-random bit generation via Python's `random`.  |
 | `db.py`       | SQLite storage for sessions and bits.                |
 | `analysis.py` | Quality metrics over stored bits.                    |
-| `qrng.db`     | Local SQLite database (created on first run).        |
+| `rng.db`      | Local SQLite database (created on first run).        |
 
 ## Data model
 
 A **session** is one run/batch of bit generation.
 
-- `sessions` — one row per batch: `source` (e.g. `hadamard`) and `exec_time`
-  (official IBM QPU execution time in seconds, excluding queue wait).
+- `sessions` — one row per batch: `source` (the generator, e.g. `hadamard` for
+  quantum or `prng` for pseudo-random) and `exec_time` (measured generation time
+  in milliseconds; for quantum runs this is the QPU execution-span wall-clock,
+  excluding queue wait, and for pseudo-random runs the timed generation loop).
 - `bits` — one row per generated bit, linked to its session via `session_id`.
 
 ## Analysis
