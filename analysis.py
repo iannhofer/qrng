@@ -17,7 +17,7 @@ def calcMinEntropy(bits=None, session_id=None):
     max_prob = max(counts.values()) / n
     return -math.log2(max_prob)
 
-# returns random bit generation speed
+# returns bits per seconds for a session
 def calcSpeed(session_id):
     bits = getBits(session_id)
     exec_time = getDuration(session_id)
