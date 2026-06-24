@@ -1,13 +1,13 @@
 import math
 from collections import Counter
 
-from db import getBits, getDuration
+from db import getBytes, getDuration
 
 
 # get min-entropy of a seqence of bits
 def calcMinEntropy(bits=None, session_id=None):
     if bits is None:
-        bits = getBits(session_id)
+        bits = getBytes(session_id)
 
     n = len(bits)
     if n == 0:
@@ -19,7 +19,7 @@ def calcMinEntropy(bits=None, session_id=None):
 
 # returns bits per seconds for a session
 def calcSpeed(session_id):
-    bits = getBits(session_id)
+    bits = getBytes(session_id)
     exec_time = getDuration(session_id)
 
     n = len(bits)

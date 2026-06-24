@@ -118,3 +118,26 @@ def countBytes(session_id: int) -> int:
         ).fetchone()
     conn.close()
     return row[0]
+
+
+# returns duration of a session, or all sessions
+def getDuration(session_id: int | None = None) -> float:
+    conn = _connect()
+    with conn:
+        if session_id is None:
+            row = conn.execute(
+                "SELECT SUM(gen_exec_time), SUM(audit_exec_time) FROM sessions"
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT gen_exec_time, audit_exec_time FROM sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+    conn.close()
+    if row is None:
+        return 0.0
+    gen_exec_time, audit_exec_time = row
+    total_duration = gen_exec_time or 0.0
+    if audit_exec_time is not None:
+        total_duration += audit_exec_time
+    return total_duration
