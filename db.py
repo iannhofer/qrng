@@ -1,8 +1,21 @@
 import os
 import sqlite3
 from datetime import datetime
+from typing import List, Tuple
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "rng.db")
+
+# Automatically extract rng.zip if rng.db is missing but the zip is available
+if not os.path.exists(DB_PATH):
+    zip_path = os.path.join(os.path.dirname(__file__), "rng.zip")
+    if os.path.exists(zip_path):
+        import zipfile
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(os.path.dirname(__file__))
+            print("Extracted rng.db from rng.zip successfully.")
+        except Exception as e:
+            print(f"Warning: Failed to extract rng.zip: {e}")
 
 
 # initiates db if necessary
@@ -16,7 +29,9 @@ def _connect() -> sqlite3.Connection:
             source          TEXT NOT NULL,
             created_at      TEXT NOT NULL,
             gen_exec_time   REAL,
-            audit_exec_time REAL
+            audit_exec_time REAL,
+            chsh_score      REAL,
+            is_simulation   INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS bit_data (
@@ -38,12 +53,12 @@ def _connect() -> sqlite3.Connection:
 
 
 # stores session in dataase
-def storeSession(source: str, gen_exec_time: float, audit_exec_time: float | None = None) -> int:
+def storeSession(source: str, gen_exec_time: float, audit_exec_time: float | None = None, chsh_score: float | None = None, is_simulation: bool = False) -> int:
     conn = _connect()
     with conn:
         cur = conn.execute(
-            "INSERT INTO sessions (source, created_at, gen_exec_time, audit_exec_time) VALUES (?, ?, ?, ?)",
-            (source, datetime.now().isoformat(timespec="seconds"), gen_exec_time, audit_exec_time),
+            "INSERT INTO sessions (source, created_at, gen_exec_time, audit_exec_time, chsh_score, is_simulation) VALUES (?, ?, ?, ?, ?, ?)",
+            (source, datetime.now().isoformat(timespec="seconds"), gen_exec_time, audit_exec_time, chsh_score, int(is_simulation)),
         )
         session_id = cur.lastrowid
     conn.close()
@@ -77,7 +92,7 @@ def getSession(session_id: int) -> dict | None:
     conn = _connect()
     with conn:
         row = conn.execute(
-            "SELECT id, source, created_at, gen_exec_time, audit_exec_time FROM sessions WHERE id = ?",
+            "SELECT id, source, created_at, gen_exec_time, audit_exec_time, chsh_score, is_simulation FROM sessions WHERE id = ?",
             (session_id,),
         ).fetchone()
     conn.close()
@@ -89,6 +104,8 @@ def getSession(session_id: int) -> dict | None:
         "created_at": row[2],
         "gen_exec_time": row[3],
         "audit_exec_time": row[4],
+        "chsh_score": row[5],
+        "is_simulation": bool(row[6]),
     }
 
 
@@ -106,6 +123,27 @@ def getBytes(session_id: int | None = None) -> list[int]:
     conn.close()
     return [row[0] for row in rows]
 
+# returns audit data of sessions
+def getAuditDataForSessions(session_ids: List[int]) -> List[Tuple[str, int, int]]:
+    conn = _connect()
+    with conn:
+        placeholders = ",".join("?" for _ in session_ids)
+        query = f"SELECT basis, outcome, count FROM audit_data WHERE session_id IN ({placeholders})"
+        rows = conn.execute(query, session_ids).fetchall()
+    conn.close()
+    return rows
+
+# returns session ids for specific rng
+def getSessionIDsBySource(source: str, simulated: bool = False) -> List[int]:
+
+    conn = _connect()
+    with conn:
+        rows = conn.execute(
+            "SELECT id FROM sessions WHERE source = ? AND is_simulation = ?",
+            (source, int(simulated)),
+        ).fetchall()
+    conn.close()
+    return [row[0] for row in rows]
 
 
 # returns the number of output bytes stored in a session.
@@ -126,7 +164,7 @@ def getDuration(session_id: int | None = None) -> float:
     with conn:
         if session_id is None:
             row = conn.execute(
-                "SELECT SUM(gen_exec_time), SUM(audit_exec_time) FROM sessions"
+                "SELECT SUM(gen_exec_time), SUM(audit_exec_time) FROM sessions WHERE is_simulation = 0"
             ).fetchone()
         else:
             row = conn.execute(

@@ -1,94 +1,49 @@
-# QRNG — Quantum Random Number Generator
+# Description
 
-Generates random bits and stores then in a database alongside other data later used for analysis.
+This prototype generates random numbers using PRNG, TRNG, trusted QRNG and self-testing QRNG and also tracks their respective generation speed to show the fundamental tradeoff between security and speed.
 
-## How it works
-
-Creates a Hadamard Gate and collapses it by measuring. The resulting bits are stored in a SQLite database and then used for analysis (random bit generation speed, min-entropy).
-
-
-## Requirements
-
-- Python 3.10+
-- IBM Quantum account, API token
-- Packages: `qiskit`, `qiskit-ibm-runtime`, `python-dotenv`, `numpy`
 
 ## Setup
 
-```bash
+clone repo: 
+git clone https://github.com/iannhofer/qrng.git
 
+create venv:
 python -m venv .venv
 source .venv/bin/activate
 
+install dependencies:
 pip install -r requirements.txt
-```
 
-Copy the example environment file and add your IBM Quantum API token:
+optional (if you want to generate quantum random numbers yourself)
+put your ibm quantum api token into the .env, as well as the instance
 
-```bash
-cp .env.example .env
-```
 
-```dotenv
-# .env
-IBM_KEY = your_ibm_quantum_api_token
-```
+# Usage
 
-`.env` is git-ignored, so your token stays out of version control.
+use PRNG:
+python -c "import prng; prng.generateBatch(n_bytes=2048)"
+(adjust bytes)
 
-## Usage
+use TRNG: 
+python -c "import trng; trng.generateBatch(n_bytes=512)"
 
-Generate a batch of bits (defaults to 10,000) and store them:
+use trusted QRNG, simulated:
+python -c "import qrng; qrng.generateBatch(n_bytes=16, use_simulator=True)"
 
-```bash
-python main.py
-```
 
-Or use the API directly:
+use trusted QRNG, real quantum hardware:
+python -c "import qrng; qrng.generateBatch(n_bytes=16, use_simulator=False)"
 
-```python
-import qrng
-import analysis
 
-# generate and store a batch; returns the number of bits stored
-qrng.generateBits(n=10000)
+use DI-QRNG, simlated:
+python -c "import qrng; qrng.generateVerifiedBatch(n_bytes=4, use_simulator=True)"
 
-# generate a single bit without storing it
-bit = qrng.generateBit()
 
-# analyse a stored session
-print(analysis.calcMinEntropy(session_id=1))  # bits of min-entropy per bit
-print(analysis.calcSpeed(session_id=1))        # bits per second on the QPU
-```
+use DI-QRNG, real quantum hardware:
+python -c "import qrng; qrng.generateVerifiedBatch(n_bytes=4, use_simulator=False)"
 
-> **Note:** running against real hardware submits a job to the IBM Quantum queue.
-> Jobs may wait before executing depending on backend demand.
 
-## Project structure
+get report/metrics:
+python -c "import analysis; analysis.report_all_metrics()"
 
-| File          | Purpose                                              |
-| ------------- | ---------------------------------------------------- |
-| `main.py`     | Entry point — generates a batch of bits.             |
-| `qrng.py`     | Quantum circuit and IBM Runtime job submission.      |
-| `prng.py`     | Pseudo-random bit generation via Python's `random`.  |
-| `db.py`       | SQLite storage for sessions and bits.                |
-| `analysis.py` | Quality metrics over stored bits.                    |
-| `rng.db`      | Local SQLite database (created on first run).        |
-
-## Data model
-
-A **session** is one run/batch of bit generation.
-
-- `sessions` — one row per batch: `source` (the generator, e.g. `hadamard` for
-  quantum or `prng` for pseudo-random) and `exec_time` (measured generation time
-  in milliseconds; for quantum runs this is the QPU execution-span wall-clock,
-  excluding queue wait, and for pseudo-random runs the timed generation loop).
-- `bits` — one row per generated bit, linked to its session via `session_id`.
-
-## Analysis
-
-- **Min-entropy** (`calcMinEntropy`) — `-log2(p_max)`, where `p_max` is the
-  frequency of the most common bit value. Quantifies worst-case predictability;
-  ideal random bits approach 1.0 bit of min-entropy per bit.
-- **Generation speed** (`calcSpeed`) — bits divided by the QPU execution time,
-  in bits per second.

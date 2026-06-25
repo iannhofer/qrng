@@ -1,19 +1,27 @@
 import random
 import time
-import os
-from typing import Tuple, List
-
 import db
-from qiskit import QuantumCircuit, transpile
-from qiskit_aer import AerSimulator
 
+# generates pseudo random numbers
+def generateBatch(n_bytes: int = 8192) -> int:
+    n_bits = n_bytes * 8
+    
+    start_time = time.perf_counter_ns()
+    
+    # Generate a list of random bits
+    bits = [random.getrandbits(1) for _ in range(n_bits)]
+    
+    exec_time_ms = (time.perf_counter_ns() - start_time) / 1e6
 
-# generates bits with a prng
-def generateBits(n=10000):
-    start = time.perf_counter_ns()
-    bits = [random.getrandbits(1) for _ in range(n)]
-    exec_time = (time.perf_counter_ns() - start) / 1e6  # generation time, in ms
+    byte_values = bytearray()
+    for i in range(0, n_bits, 8):
+        byte = 0
+        for j in range(8):
+            byte |= (bits[i + j] << (7 - j))
+        byte_values.append(byte)
 
-    session_id = db.storeSession("prng", exec_time)
-    db.storeBits(bits, session_id)
-    return len(bits)
+    # Store the session and data
+    session_id = db.storeSession("prng", exec_time_ms)
+    db.storeBytes(bytes(byte_values), session_id)
+
+    return session_id
